@@ -1,0 +1,28 @@
+name: Compilation LaTeX
+
+# L'action se déclenche à chaque push sur la branche main
+on:
+  push:
+    branches:
+      - main 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Récupérer le code de ton dépôt
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # 2. Compiler le document LaTeX
+      - name: Compilation avec latex-action
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: main.tex # ⚠️ À remplacer si ton fichier ne s'appelle pas main.tex
+
+      # 3. Sauvegarder le PDF généré pour pouvoir le télécharger
+      - name: Mise à disposition du PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mon-Document-PDF # Le nom du dossier zip à télécharger
+          path: main.pdf         # ⚠️ À remplacer si ton PDF ne s'appelle pas main.pdf
