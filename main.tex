@@ -207,7 +207,7 @@ Le câblage reprend l'architecture déjà validée (alimentation en étoile, mas
 
 Une fois ce montage en place, il restera à reprogrammer le baudrate dans l'EEPROM de chaque moteur pour qu'il corresponde à celui du microcontrôleur, puis à valider la stabilité du bus (taux de perte de paquets, erreurs CRC) au nouveau débit. Le passage à 1\,Mbps suffit déjà théoriquement à atteindre les 200\,Hz visés avec une marge confortable, les 3\,Mbps constituant une réserve pour la montée en charge vers les 21 moteurs du SWUMANOID. Le passage des tests virtuels au robot physique SWUMANOID a montré des problèmes qui ont nécessité des refontes algorithmiques et logiques.
 
-\subsection{Implémentation de la Télémétrie et Gestion Mémoire}
+\section{Implémentation de la Télémétrie et Gestion Mémoire}
 
 \paragraph{Résilience réseau :}
 Dans le contexte d'une utilisation sous-marine, les micro-coupures Wi-Fi figeaient fréquemment l'interface web sans en avertir l'utilisateur. Pour rendre le système résilient aux pertes de signal, j'ai développé un \textit{Watchdog} en JavaScript qui surveille le flux \textit{Server-Sent Events} (SSE). S'il n'y a pas de données reçues pendant 600 ms, l'interface affiche une alerte \og OFFLINE \fg{} et tente une reconnexion silencieuse.
