@@ -62,37 +62,22 @@
 \section{Introduction}
 Ceci est le début de mon rapport. Je peux citer des articles scientifiques très facilement comme ceci : \cite{nakashima_2024}.
 
-\section{Contexte de l'entreprise}
+\subsection{Contexte du laboratoire Nakashima}
 \lipsum[1]
-
-
-\newpage
-
-% ================================================================
-\section*{Contexte du projet}
-% ================================================================
 
 \subsection{Le projet SWUMANOID}
 
-Le projet SWUMANOID vise à développer le firmware d'un contrôleur de robot humanoïde.
-Le système embarqué est construit sur le système de compilation \textbf{PlatformIO}, utilisant le
-framework \textbf{Arduino} sur un microcontrôleur \textbf{Espressif ESP32-S3}.
-Le firmware gère le contrôle en temps réel des servomoteurs via un bus RS-485 Dynamixel, la mesure
-inertielle, la communication sans fil via un point d'accès Wi-Fi, et la lecture de mouvements à
-partir de fichiers stockés sur le système de fichiers flash interne.
+\lipsum[1]
 
-L'architecture logicielle est organisée autour d'une machine à états finis
-(\texttt{AppState} : \texttt{Boot}, \texttt{Idle}, \texttt{Loading}, \texttt{Ready},
-\texttt{Running}, \texttt{Stopping}, \texttt{Error}), pilotée par des commandes UDP reçues
-depuis une interface web. Les données des capteurs, la télémétrie des moteurs et l'état
-du système sont périodiquement diffusés en retour au client.
+\newpage
 
-\subsection{Mise à niveau matérielle : AtomS3 \texorpdfstring{$\rightarrow$}{->} AtomS3R}
+\subsection{Mise à niveau matérielle du SWUMANOID}
 
-Le firmware d'origine a été écrit et validé pour la carte de développement \textbf{M5Stack AtomS3}.
-À mon arrivée au laboratoire, le matériel avait été mis à niveau vers le \textbf{M5Stack AtomS3R}.
-Bien que les deux cartes partagent le même SoC ESP32-S3 et un facteur de forme similaire, elles
-diffèrent par deux composants matériels qui affectent directement le firmware :
+Le projet SWUMANOID vise à développer le firmware d'un contrôleur de robot humanoïde. Le système embarqué est construit sur le système de compilation \textbf{PlatformIO}, utilisant le framework \textbf{Arduino} sur un microcontrôleur \textbf{Espressif ESP32-S3}. Le firmware gère le contrôle en temps réel des servomoteurs via un bus RS-485 Dynamixel, la mesure inertielle, la communication sans fil via un point d'accès Wi-Fi, et la lecture de mouvements à partir de fichiers stockés sur le système de fichiers flash interne.
+
+L'architecture logicielle est organisée autour d'une machine à états finis (\texttt{AppState} : \texttt{Boot}, \texttt{Idle}, \texttt{Loading}, \texttt{Ready}, \texttt{Running}, \texttt{Stopping}, \texttt{Error}), pilotée par des commandes UDP reçues depuis une interface web. Les données des capteurs, la télémétrie des moteurs et l'état du système sont périodiquement diffusés en retour au client.
+
+Le firmware d'origine a été écrit et validé pour la carte de développement \textbf{M5Stack AtomS3}. À mon arrivée au laboratoire, le matériel avait été mis à niveau vers le \textbf{M5Stack AtomS3R}. Bien que les deux cartes partagent le même SoC ESP32-S3 et un facteur de forme similaire, elles diffèrent par deux composants matériels qui affectent directement le firmware :
 
 \begin{table}[h!]
 \centering
@@ -121,11 +106,7 @@ Pour cela, le \textbf{M5Stack AtomS3R} (intégrant un ESP32-S3) est beaucoup plu
 \subsection{Missions assignées}
 % ================================================================
 
-Ma première mission technique consistait à \textbf{migrer la couche des pilotes matériels}
-d'un accès aux registres codé à la main et spécifique à la carte, vers la bibliothèque
-d'abstraction \textbf{M5Unified}, qui prend en charge nativement à la fois l'AtomS3 et l'AtomS3R.
-La migration a été circonscrite à deux pilotes, en préservant entièrement le reste de
-l'architecture du firmware :
+Ma première mission technique consistait à \textbf{migrer la couche des pilotes matériels} d'un accès aux registres codé à la main et spécifique à la carte, vers la bibliothèque d'abstraction \textbf{M5Unified}, qui prend en charge nativement à la fois l'AtomS3 et l'AtomS3R. La migration a été circonscrite à deux pilotes, en préservant entièrement le reste de l'architecture du firmware :
 
 \begin{enumerate}
   \item \textbf{\texttt{src/firmware/drivers/imu\_driver.cpp}}:remplacer l'accès brut aux
@@ -135,57 +116,26 @@ l'architecture du firmware :
         l'AtomS3R.
 \end{enumerate}
 
-La contrainte était explicite : \textit{ne pas modifier la logique globale de la machine à états}.
-Seule la couche matérielle devait être adaptée.
+La contrainte était explicite : \textit{ne pas modifier la logique globale de la machine à états}. Seule la couche matérielle devait être adaptée.
 
 \section{Création d'une interface Web pour le contrôle}
 Plutôt que de lancer tout le code complexe d'un coup, j'ai procédé méthodiquement en validant chaque brique technologique.
 
-\subsection{Migration du Code (De l'AtomS3 vers l'AtomS3R)}
+\subsection{Migration du Code et prise en main}
 Le code d'origine était conçu pour l'AtomS3. Bien que l'AtomS3R soit similaire visuellement, son architecture interne est très différente. J'ai dû réécrire une partie des pilotes (drivers) matériels :
 \begin{itemize}
     \item \textbf{L'écran LCD :} Sur l'AtomS3, le rétroéclairage était contrôlé directement par une broche (GPIO). Sur le S3R, il faut communiquer en I2C avec une puce dédiée (AW9523).
     \item \textbf{L'IMU (Centrale inertielle) :} Le capteur est passé d'un MPU6886 à un capteur de nouvelle génération. J'ai dû adapter le code pour lire correctement les nouvelles adresses I2C.
 \end{itemize}
 
-\subsection{Mesure du RSSI et Dashboard}
 Puisque le cahier des charges souligne que le Wi-Fi est souvent instable, je ne pouvais pas me contenter de suppositions. J'ai implémenté un système de diagnostic réseau :
 \begin{itemize}
     \item J'ai modifié le firmware pour qu'il calcule le \textbf{RSSI} (Received Signal Strength Indicator), c'est-à-dire la puissance réelle du signal Wi-Fi perçu par le robot.
     \item J'ai créé une interface web de contrôle avec un \textbf{graphique en temps réel (via Chart.js)} qui trace l'évolution de ce signal. Cela nous permet de localiser les zones de perte de paquets et de valider scientifiquement la qualité de la connexion avant de lancer le robot dans l'eau.
 \end{itemize}
 
-\subsection{Validation du Bus RS-485}
-Le cœur du robot étant la communication avec ses 21 moteurs Dynamixel, j'ai mis de côté le Wi-Fi et la machine à états pour réaliser un test purement matériel sur la puce RS-485. J'ai commencé par faire un test sur un seul moteur avec un cablage simple et cela fonctionnait très bien. J'ai envoyé avec succès des commandes brutes (\textit{Ping}, \textit{Torque Enable}, et mouvements de base) au moteur, prouvant que le câblage différentiel (Data+/Data-), l'alimentation 12V et l'ESP32 fonctionnent parfaitement ensemble. J'avais quelques pertes de paquet (environ $2\%$) mais ce n'était pas dérangeant car le mouvement restait fluide et précis.\\
 
-Ensuite j'ai tenté de réalisé un nouveau cablâge avec un moteur supplémentaire, le XM540-W150-R qui n'est pas utilisé dans le SWUMANOID mais qui possède toutes les propriétés d'un moteur dynamixel. C'était pour simuler un peu plus la configuration du robot et ainsi controlé plusieurs moteurs à la fois. Cependant cela s'est avéré difficile.\\
-
-En effet, le cablage n'était pas parfait et je n'arrivais pas à détecter les deux moteurs en meme temps. C'est pour cela que j'ai que j'ai opté pour cette configuration \\
-
-Une alimentation en Étoile : Le 12V et le GND partent du générateur et vont directement et indépendamment vers la base AtomS3R, le moteur XM, et le moteur XW. Tous partagent une masse commune stricte. Les Données sont mises en Série (Daisy-Chain) : Les signaux D+ (A) et D- (B) partent de l'AtomS3R, entrent dans le port 1 du XM540, ressortent par le port 2, et finissent dans le port unique du XW430.\\
-
-Cependant malgré cela j'avais des grosses pertes de paquet (environ $80\%$) ce qui donnait un mouvement des moteurs très saccadé. Ainsi pour attenuer le bruit et éviter que les signaux electriques ne rebondissent en bout de ligne, j'ai placé une résistance de 120 Ohms aux deux extrémités extrêmes du bus : Une sur le bornier de la base AtomS3R (entre A et B). Et une à l'autre extrémité, connectée sur le bornier du XW430.\\
-
-J'ai obtenu un mouvement super fluide et synchronisé des moteurs avec une perte de paquet estimée à $0\%$ ce qui est génial. Les moteurs sont très bien controlés et à une fréquence plus élevée que sur le SWUMANOID car j'ai réussi à les controlés à une fréquence de 100 Hz. Cependant le problème actuel est que je veux pouvoir les controler à une fréquence de 200 Hz, soit 2 fois plus. Pour y arriver il faudrait que j'utilise un baudrate sur les moteurs beaucoup plus élevé (au moins 1 Mbps) mais malheureusement malgré mes nombreux essaies je n'ai pas pu aller plus loin qu'un baudrate de 115200 bps. En effet à chaque fois que j'augmentais le baudrate plus haut, le micro controleur n'arrivait plus à détecter les moteurs, ceci est dû à une limitation matérielle de la base \textit{Atomic RS485}, et plus précisément à la manière dont elle pilote sa puce. La base repose sur un transceiver SP3485, capable en théorie d'atteindre 10\,Mbps. La puce n'est donc pas en cause : ce débit de 10\,Mbps correspond au débit \emph{brut}, c'est-à-dire à la vitesse des bits une fois que le sens de communication (émission ou réception) est déjà fixé.\\
-
-Or le bus Dynamixel est \textit{half-duplex} : une seule paire de fils (A/B) transporte les deux sens, et il faut donc basculer en permanence entre émission et réception. Ce basculement est commandé par une broche dédiée du transceiver, la broche \textit{DE} (\textit{Driver Enable}). Le problème est que la base M5Stack n'expose pas cette broche : elle ne sort que les lignes TX et RX, et confie le basculement à un \textbf{circuit de direction automatique} qui « écoute » la ligne de données afin de deviner seul quand émettre et quand recevoir.\\
-
-C'est ce circuit automatique et non la puce qui plafonne le débit. Il est calibré pour les basses vitesses : à 115200\,bps, un bit dure environ 8{,}7\,$\mu$s, ce qui lui laisse largement le temps de libérer le bus avant la réponse du moteur. À 1\,Mbps, un bit ne dure plus qu'environ 1\,$\mu$s : le circuit ne relâche plus la ligne assez vite, l'émission de la base écrase alors le début de la réponse du moteur, et le microcontrôleur ne reçoit plus aucun \textit{Status Packet}. C'est ce qui explique la perte totale de détection observée dès que je dépasse 115200\,bps.\\
-
-\paragraph{Résolution envisagée}
-La solution ne consiste pas à chercher une puce « plus rapide », puisque le SP3485 suffit déjà : il faut une carte sur laquelle la broche de direction DE est commandée \emph{explicitement} par le microcontrôleur, au lieu d'être confiée à un automate trop lent. Je prévois donc de remplacer la base \textit{Atomic RS485} par un petit transceiver SP3485 (ou MAX3485) en 3{,}3\,V exposant sa broche DE. Le matériel nécessaire :\\
-\begin{itemize}
-    \item une carte transceiver RS-485 en 3{,}3\,V avec broche DE accessible (puce SP3485, 10\,Mbps) ;
-    \item un convertisseur abaisseur 12\,V $\rightarrow$ 5\,V (type Pololu D24V10F5) pour alimenter l'AtomS3R, la base actuelle assurant cette conversion étant retirée ;
-    \item un boîtier de prototypage \textit{ATOM HUB Proto} pour intégrer proprement l'ensemble.
-\end{itemize}
-
-Le câblage reprend l'architecture déjà validée (alimentation en étoile, masse commune, terminaisons 120\,$\Omega$ inchangées) : seul l'étage de communication change. La broche DI du transceiver est reliée à la sortie TX (G6) de l'AtomS3R, la broche RO à l'entrée RX (G5), et les broches DE/RE réunies à un GPIO libre (G7). Côté logiciel, j'exploiterai le \textbf{mode RS-485 half-duplex matériel de l'UART de l'ESP32-S3} : la broche de direction (RTS) bascule automatiquement, en synchronisation directe avec le registre d'émission, sans latence logicielle. Le bus est ainsi libéré dès l'envoi du dernier bit, en moins d'une microseconde, ce qui rend le retournement de bus suffisamment rapide pour 1 comme pour 3\,Mbps.\\
-
-Une fois ce montage en place, il restera à reprogrammer le baudrate dans l'EEPROM de chaque moteur pour qu'il corresponde à celui du microcontrôleur, puis à valider la stabilité du bus (taux de perte de paquets, erreurs CRC) au nouveau débit. Le passage à 1\,Mbps suffit déjà théoriquement à atteindre les 200\,Hz visés avec une marge confortable, les 3\,Mbps constituant une réserve pour la montée en charge vers les 21 moteurs du SWUMANOID.
-
-
-\section{Nouvelle Architecture Web}
+\subsection{Nouvelle Architecture Web}
 L'objectif principal de cette deuxième phase de développement était d'intégrer directement sur l'UI utilisateur, l'interface qui permet de gérer le micro contrôleur, toutes les fonctionnalités pour pouvoir contrôler le SWUMANOID correctement et facilement en intégrant la possibilité d'upload des fichiers de mouvement directement issus de SWAM (.dat) et convertis directement lors de l'upload du fichier afin de créer une interface de contrôle web autonome, fluide et sécurisée. La logique de conversion des trajectoires a été intégralement déportée côté client (JavaScript), la méthode de conversion a été réalisée en reprenant le code MATLAB utilisé précédemment et donné par Iroki-san.\\
 
 Plus précisément, lors du parsing du fichier \texttt{.dat} en JavaScript, chaque angle articulaire est converti en ticks Dynamixel selon la formule affine des moteurs série X :
@@ -227,38 +177,109 @@ S(21, 144) &= 6075 \text{ octets}
 
 Avec un \textit{payload} réseau strictement égal à 6075 octets (environ 6,07 kB), l'AtomS3R peut aisément absorber la totalité de la trajectoire en un seul envoi. L'interface web a été repensée en cinq panneaux verticaux (Status, Network \& Scan, IMU Lab, Motion Control, Motion Settings \& Logs) pour une meilleure lisibilité. Enfin, les communications temps réel reposent désormais sur des \textit{Server-Sent Events} (SSE) unidirectionnels plutôt que sur des WebSockets, éliminant ainsi les problèmes de gigue (\textit{jitter}) et de collision sur le bus RS-485.
 
-\section{Problèmes Rencontrés et Solutions Implémentées}
-Le passage des tests virtuels au robot physique SWUMANOID a montré des problèmes qui ont nécessité des refontes algorithmiques et logiques.
 
-\subsection{Gestion Critique du Couple et Moteurs Inactifs}
+\subsection{Validation du Bus RS-485}
+Le cœur du robot étant la communication avec ses 21 moteurs Dynamixel, j'ai mis de côté le Wi-Fi et la machine à états pour réaliser un test purement matériel sur la puce RS-485. J'ai commencé par faire un test sur un seul moteur avec un cablage simple et cela fonctionnait très bien. J'ai envoyé avec succès des commandes brutes (\textit{Ping}, \textit{Torque Enable}, et mouvements de base) au moteur, prouvant que le câblage différentiel (Data+/Data-), l'alimentation 12V et l'ESP32 fonctionnent parfaitement ensemble. J'avais quelques pertes de paquet (environ $2\%$) mais ce n'était pas dérangeant car le mouvement restait fluide et précis.\\
 
-\paragraph{Problème identifié :} Lors de l'envoi du robot vers sa position initiale, seulement quelques moteurs réagissaient. Pire encore, les moteurs des membres inférieurs se désactivaient totalement, laissant le robot s'affaisser dangereusement.\\
+Ensuite j'ai tenté de réalisé un nouveau cablâge avec un moteur supplémentaire, le XM540-W150-R qui n'est pas utilisé dans le SWUMANOID mais qui possède toutes les propriétés d'un moteur dynamixel. C'était pour simuler un peu plus la configuration du robot et ainsi controlé plusieurs moteurs à la fois. Cependant cela s'est avéré difficile.\\
 
-Le problème était que sur les 21 moteurs du robot, seulement 18 sont utilisés dans le mouvement, les moteurs 1, 18 et 19 sont sensés restés fixes durant le mouvement. Ainsi ces derniers recevaient une consigne de position fixée à \texttt{0}. Or la valeur \texttt{0} correspond à la butée mécanique extrême, ce qui déclenchait la sécurité interne de surcharge (\textit{Overload Error}) et coupait le couple.
+En effet, le cablage n'était pas parfait et je n'arrivais pas à détecter les deux moteurs en meme temps. C'est pour cela que j'ai que j'ai opté pour cette configuration \\
 
-\paragraph{Résolution :}  J'ai corrigé ce problème en sécurisant le control du robot, désormais dès que des moteurs sont détectés sur le bus, le couple est désactivé, rendant le robot souple et permettant la manipulation et ce même lorsque le fichier de mouvement est uploadé. Le couple s'active qu'à partir du moment où l'on envoie le robot à sa position initiale, de plus tous les moteurs détectés mais inactifs dans le fichier de mouvement uploadé sont envoyés à la position centrale de sécurité par défaut (\texttt{2048 ticks}) avec le couple activé.\\
+Une alimentation en Étoile : Le 12V et le GND partent du générateur et vont directement et indépendamment vers la base AtomS3R, le moteur XM, et le moteur XW. Tous partagent une masse commune stricte. Les Données sont mises en Série (Daisy-Chain) : Les signaux D+ (A) et D- (B) partent de l'AtomS3R, entrent dans le port 1 du XM540, ressortent par le port 2, et finissent dans le port unique du XW430.\\
 
-De plus, pour pallier les limitations du convertisseur de fichiers \texttt{.dat} (qui ignorait certains IDs moteurs), j'ai implémenté la prise en charge directe des fichiers pré-convertis \texttt{.inc} contenant la matrice complète des positions des 21 moteurs. Ces fichiers, générés par le pipeline de simulation de Nakashima-sensei, contiennent des matrices C déjà formatées.
+Cependant malgré cela j'avais des grosses pertes de paquet (environ $80\%$) ce qui donnait un mouvement des moteurs très saccadé. Ainsi pour attenuer le bruit et éviter que les signaux electriques ne rebondissent en bout de ligne, j'ai placé une résistance de 120 Ohms aux deux extrémités extrêmes du bus : Une sur le bornier de la base AtomS3R (entre A et B). Et une à l'autre extrémité, connectée sur le bornier du XW430.\\
 
-\subsection{Cinématique : Saccades et Fluidité du Mouvement}
+J'ai obtenu un mouvement super fluide et synchronisé des moteurs avec une perte de paquet estimée à $0\%$ ce qui est génial. Les moteurs sont très bien controlés et à une fréquence plus élevée que sur le SWUMANOID car j'ai réussi à les controlés à une fréquence de 100 Hz. Cependant le problème actuel est que je veux pouvoir les controler à une fréquence de 200 Hz, soit 2 fois plus. Pour y arriver il faudrait que j'utilise un baudrate sur les moteurs beaucoup plus élevé (au moins 1 Mbps) mais malheureusement malgré mes nombreux essaies je n'ai pas pu aller plus loin qu'un baudrate de 115200 bps. En effet à chaque fois que j'augmentais le baudrate plus haut, le micro controleur n'arrivait plus à détecter les moteurs, ceci est dû à une limitation matérielle de la base \textit{Atomic RS485}, et plus précisément à la manière dont elle pilote sa puce. La base repose sur un transceiver SP3485, capable en théorie d'atteindre 10\,Mbps. La puce n'est donc pas en cause : ce débit de 10\,Mbps correspond au débit \emph{brut}, c'est-à-dire à la vitesse des bits une fois que le sens de communication (émission ou réception) est déjà fixé.\\
 
-\paragraph{Problème identifié.} L'interpolation linéaire initialement utilisée pour relier les frames de mouvement garantissait la continuité de la position, mais pas celle de ses dérivées : à chaque nœud, la vitesse commandée changeait de façon discontinue (accélération théoriquement infinie), ce qui se traduisait par des mouvements saccadés. Le déplacement vers la position initiale était également trop brusque, et un bug logiciel figeait la fréquence de contrôle à 15~Hz indépendamment des consignes de l'interface. Enfin, lors de la lecture cyclique d'un mouvement (répétition du même fichier), la dernière frame ne coïncidait généralement pas avec la première : le rebouclage provoquait un saut de position et de vitesse, donc un à-coup mécanique à chaque début de cycle.
+Or le bus Dynamixel est \textit{half-duplex} : une seule paire de fils (A/B) transporte les deux sens, et il faut donc basculer en permanence entre émission et réception. Ce basculement est commandé par une broche dédiée du transceiver, la broche \textit{DE} (\textit{Driver Enable}). Le problème est que la base M5Stack n'expose pas cette broche : elle ne sort que les lignes TX et RX, et confie le basculement à un \textbf{circuit de direction automatique} qui « écoute » la ligne de données afin de deviner seul quand émettre et quand recevoir.\\
 
-\paragraph{Fréquence dynamique et rééchantillonnage.} Afin d'offrir une flexibilité totale sur le contrôle temporel, la logique de gestion des paramètres a été inversée. Désormais, la fréquence de contrôle ($f_{\mathrm{Hz}}$), la durée d'un cycle ($T_{\mathrm{cycle}}$) et le nombre de répétitions ($N_{\mathrm{plays}}$) sont les seules variables définies par l'utilisateur. Le nombre de frames par cycle ($F$) n'est plus une contrainte imposée par le fichier source, mais une variable calculée dynamiquement :
+C'est ce circuit automatique et non la puce qui plafonne le débit. Il est calibré pour les basses vitesses : à 115200\,bps, un bit dure environ 8{,}7\,$\mu$s, ce qui lui laisse largement le temps de libérer le bus avant la réponse du moteur. À 1\,Mbps, un bit ne dure plus qu'environ 1\,$\mu$s : le circuit ne relâche plus la ligne assez vite, l'émission de la base écrase alors le début de la réponse du moteur, et le microcontrôleur ne reçoit plus aucun \textit{Status Packet}. C'est ce qui explique la perte totale de détection observée dès que je dépasse 115200\,bps.\\
+
+\paragraph{Résolution envisagée}
+La solution ne consiste pas à chercher une puce « plus rapide », puisque le SP3485 suffit déjà : il faut une carte sur laquelle la broche de direction DE est commandée \emph{explicitement} par le microcontrôleur, au lieu d'être confiée à un automate trop lent. Je prévois donc de remplacer la base \textit{Atomic RS485} par un petit transceiver SP3485 (ou MAX3485) en 3{,}3\,V exposant sa broche DE. Le matériel nécessaire :\\
+\begin{itemize}
+    \item une carte transceiver RS-485 en 3{,}3\,V avec broche DE accessible (puce SP3485, 10\,Mbps) ;
+    \item un convertisseur abaisseur 12\,V $\rightarrow$ 5\,V (type Pololu D24V10F5) pour alimenter l'AtomS3R, la base actuelle assurant cette conversion étant retirée ;
+    \item un boîtier de prototypage \textit{ATOM HUB Proto} pour intégrer proprement l'ensemble.
+\end{itemize}
+
+Le câblage reprend l'architecture déjà validée (alimentation en étoile, masse commune, terminaisons 120\,$\Omega$ inchangées) : seul l'étage de communication change. La broche DI du transceiver est reliée à la sortie TX (G6) de l'AtomS3R, la broche RO à l'entrée RX (G5), et les broches DE/RE réunies à un GPIO libre (G7). Côté logiciel, j'exploiterai le \textbf{mode RS-485 half-duplex matériel de l'UART de l'ESP32-S3} : la broche de direction (RTS) bascule automatiquement, en synchronisation directe avec le registre d'émission, sans latence logicielle. Le bus est ainsi libéré dès l'envoi du dernier bit, en moins d'une microseconde, ce qui rend le retournement de bus suffisamment rapide pour 1 comme pour 3\,Mbps.\\
+
+Une fois ce montage en place, il restera à reprogrammer le baudrate dans l'EEPROM de chaque moteur pour qu'il corresponde à celui du microcontrôleur, puis à valider la stabilité du bus (taux de perte de paquets, erreurs CRC) au nouveau débit. Le passage à 1\,Mbps suffit déjà théoriquement à atteindre les 200\,Hz visés avec une marge confortable, les 3\,Mbps constituant une réserve pour la montée en charge vers les 21 moteurs du SWUMANOID. Le passage des tests virtuels au robot physique SWUMANOID a montré des problèmes qui ont nécessité des refontes algorithmiques et logiques.
+
+\subsection{Implémentation de la Télémétrie et Gestion Mémoire}
+
+\paragraph{Résilience réseau :}
+Dans le contexte d'une utilisation sous-marine, les micro-coupures Wi-Fi figeaient fréquemment l'interface web sans en avertir l'utilisateur. Pour rendre le système résilient aux pertes de signal, j'ai développé un \textit{Watchdog} en JavaScript qui surveille le flux \textit{Server-Sent Events} (SSE). S'il n'y a pas de données reçues pendant 600 ms, l'interface affiche une alerte \og OFFLINE \fg{} et tente une reconnexion silencieuse.
+
+\paragraph{Le défi de la mémoire :}
+Parallèlement, j'ai souhaité intégrer la possibilité d'acquérir les logs télémétriques (position, courant, tension, IMU) de chaque essai. Le premier problème identifié fut le risque de saturation de la mémoire vive (PSRAM) de l'ESP32 si ce dernier devait générer et stocker un fichier texte au format CSV. La solution a été d'enregistrer ces logs sous la forme d'un buffer binaire brut, extrêmement compact. La structure logicielle d'un cycle de log a été optimisée comme présenté dans le tableau \ref{tab:telemetry}.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|c|l|}
+\hline
+\textbf{Champ} & \textbf{Type} & \textbf{Description} \\ \hline
+\texttt{t\_us} & \texttt{uint32} & Timestamp en microsecondes \\ \hline
+\texttt{accel[3], gyro[3]} & $6 \times \texttt{int16}$ & IMU (milli-g, deci-deg/s) \\ \hline
+\texttt{cmd, pos, cur} & \texttt{int16, int32, int16} & Consigne, Position, Courant \\ \hline
+\texttt{volt} & \texttt{uint16} & Tension \\ \hline
+\end{tabular}
+\caption{Structure de l'enregistrement binaire des logs télémétriques}
+\label{tab:telemetry}
+\end{table}
+
+\paragraph{Le défi de la latence physique :}
+Cependant, lors des premiers essais d'enregistrement sur l'intégralité des 21 moteurs, un second obstacle majeur est apparu : une chute drastique de la fréquence de contrôle. Le mouvement du robot devenait fortement saccadé, entraînant une perte de trames et une dégradation de la dynamique de nage. Ce problème ne provenait pas d'une saturation mémoire, mais des limites physiques du bus de communication RS-485 fonctionnant en \textit{half-duplex}.\\
+
+Si l'envoi des consignes (\texttt{SyncWrite}) est quasi instantané grâce à son mode de diffusion (\textit{broadcast}), la lecture des états (\texttt{SyncRead}) oblige chaque moteur à répondre séquentiellement. Le temps de réponse individuel s'élevant à environ 3 à 4 ms par moteur, interroger l'ensemble des actionneurs en une seule passe figeait la boucle de contrôle pendant 60 à 80 ms (dépassant largement la période critique de 10 ms pour un contrôle à 100 Hz).
+
+\paragraph{Modulation de l'acquisition :}
+Pour résoudre ce conflit temporel entre la fluidité du mouvement et l'acquisition des données, l'architecture a été repensée selon deux axes :
+\begin{itemize}
+    \item \textbf{Sélection spatiale (UI) :} J'ai intégré un schéma SVG interactif du robot sur l'interface web, permettant à l'utilisateur de cliquer sur les articulations pour ne sélectionner que les moteurs pertinents ($N$ moteurs au lieu de 21 systématiquement).
+    \item \textbf{Sélection temporelle et lissage :} Le code embarqué sépare désormais l'envoi des commandes de la lecture des capteurs. L'utilisateur peut définir un espacement d'échantillonnage (\textit{Feedback sampling every $K$ frames}), afin de ne pas logger systématiquement toutes les frames. De plus, une lecture par rotation (\textit{Round-Robin}) a été introduite (\textit{Motors polled per cycle}) pour n'interroger qu'un petit sous-groupe de moteurs par cycle d'horloge, plafonnant l'occupation du bus à $\approx 7$ ms et préservant l'intégrité de la boucle de contrôle.
+\end{itemize}
+
+\paragraph{Modèle d'empreinte mémoire :}
+Grâce à cette organisation temporelle et structurelle, l'espacement (\textit{stride}) par enregistrement est réduit à $16 + 10N$ octets. La taille totale en mémoire vive du buffer binaire, notée $M$, dépend donc du nombre de moteurs sélectionnés $N$, du nombre total de frames $F$ de la trajectoire, et de l'intervalle d'échantillonnage $K$ (une frame enregistrée toutes les $K$ frames). La formule générique s'écrit :
+\begin{equation}
+M(N, F, K) = \left\lfloor \frac{F}{K} \right\rfloor \times (16 + 10N)
+\end{equation}
+
+Pour évaluer la charge mémoire dans le scénario le plus exigeant (enregistrement complet sans aucune sélection ni échantillonnage), prenons $N = 21$ moteurs, cadencés à 72 Hz sur 2 secondes, soit $F = 144$ frames, avec un enregistrement à chaque frame ($K = 1$) :
+\begin{align*}
+M(21, 144, 1) &= \left\lfloor \frac{144}{1} \right\rfloor \times (16 + 10 \times 21) \\
+M(21, 144, 1) &= 144 \times 226 \\
+M(21, 144, 1) &= 32544 \text{ octets}
+\end{align*}
+
+Même dans ce pire scénario, le buffer ne demande que $\approx 32,54 \text{ kB}$ de RAM, ce qui reste parfaitement négligeable par rapport aux 2 MB alloués par la puce. À la fin de l'essai, ce bloc binaire compact est transféré au navigateur web. C'est le code JavaScript de l'ordinateur client qui se charge du traitement lourd : il décode le binaire, construit le fichier texte \texttt{.csv} complet et génère automatiquement le téléchargement du fichier hors ligne pour l'utilisateur.
+
+
+\section{Cinématique et interpolation des mouvements}
+
+\subsection{Problème identifié} 
+
+L'interpolation linéaire initialement utilisée pour relier les frames de mouvement garantissait la continuité de la position, mais pas celle de ses dérivées : à chaque nœud, la vitesse commandée changeait de façon discontinue (accélération théoriquement infinie), ce qui se traduisait par des mouvements saccadés. Le déplacement vers la position initiale était également trop brusque, et un bug logiciel figeait la fréquence de contrôle à 15~Hz indépendamment des consignes de l'interface. Enfin, lors de la lecture cyclique d'un mouvement (répétition du même fichier), la dernière frame ne coïncidait généralement pas avec la première : le rebouclage provoquait un saut de position et de vitesse, donc un à-coup mécanique à chaque début de cycle.
+
+Afin d'offrir une flexibilité totale sur le contrôle temporel, la logique de gestion des paramètres a été inversée. Désormais, la fréquence de contrôle ($f_{\mathrm{Hz}}$), la durée d'un cycle ($T_{\mathrm{cycle}}$) et le nombre de répétitions ($N_{\mathrm{plays}}$) sont les seules variables définies par l'utilisateur. Le nombre de frames par cycle ($F$) n'est plus une contrainte imposée par le fichier source, mais une variable calculée dynamiquement :
 
 \begin{equation}
-    F = f_{\mathrm{Hz}} \times T_{\mathrm{cycle}}.
+    F = f_{\mathrm{Hz}} \times T_{\mathrm{cycle}}
 \end{equation}
 
 L'intervalle de temps entre deux commandes moteur est ainsi rigoureusement fixé à $\Delta t = 1/f_{\mathrm{Hz}}$. Comme $F$ diffère en général du nombre de points $N$ du fichier de mouvement, de nouvelles positions articulaires doivent être recalculées pour correspondre exactement à ce découpage temporel : c'est le rôle de l'interpolation.
 
-\paragraph{Choix de la spline cubique.} Une interpolation linéaire par morceaux est seulement de classe $\mathcal{C}^0$ : la vitesse est constante par morceaux et discontinue aux nœuds, ce qui impose aux moteurs des changements de consigne en « escalier ». Nous lui substituons une \textit{spline cubique periodique}, c'est-à-dire une fonction polynomiale par morceaux de degré~3, de classe $\mathcal{C}^2$ sur tout l'intervalle : la position, la vitesse \emph{et} l'accélération interpolées sont continues aux nœuds. Les discontinuités d'accélération (jerk infini) sont ainsi éliminées à la source, pour un coût de calcul linéaire en $N$.
+\subsection{Choix de la spline cubique}
+
+Une interpolation linéaire par morceaux est seulement de classe $\mathcal{C}^0$ : la vitesse est constante par morceaux et discontinue aux nœuds, ce qui impose aux moteurs des changements de consigne en « escalier ». Nous lui substituons une \textit{spline cubique periodique}, c'est-à-dire une fonction polynomiale par morceaux de degré~3, de classe $\mathcal{C}^2$ sur tout l'intervalle : la position, la vitesse \emph{et} l'accélération interpolées sont continues aux nœuds. Les discontinuités d'accélération (jerk infini) sont ainsi éliminées à la source, pour un coût de calcul linéaire en $N$.
 
 \paragraph{Formulation mathématique.} Les $N$ frames du fichier source sont indexées sur une grille uniforme $x_i = i$, $i = 0,\dots,N-1$ (pas $h = x_{i+1} - x_i = 1$), et l'on note $y_i$ la consigne angulaire d'une articulation à la frame $i$ (chaque moteur est traité indépendamment par le même algorithme). Sur chaque intervalle $[x_i,\, x_{i+1}]$, la trajectoire est modélisée par un polynôme cubique 
 
 \begin{equation}
-    S_i(x) = a_i + b_i\,(x - x_i) + c_i\,(x - x_i)^2 + d_i\,(x - x_i)^3,
-    \qquad x \in [x_i,\, x_{i+1}].
+    S_i(x) = a_i + b_i\,(x - x_i) + c_i\,(x - x_i)^2 + d_i\,(x - x_i)^3
+    \qquad \text{avec} \quad x \in [x_i,\, x_{i+1}]
     \label{eq:spline-cubique}
 \end{equation}
 
@@ -307,13 +328,13 @@ Le problème s'accentue drastiquement aux très basses fréquences. À 36~Hz, so
 \paragraph{Calcul des dérivées secondes et conditions aux limites périodiques.}
 Pour éliminer ce saut de consigne et garantir une boucle fluide, les inconnues $y''_i$ aux nœuds doivent être recalculées différemment. La trajectoire étant destinée à être répétée, elle est modélisée comme une fonction \emph{périodique} de période $N$ : le nœud $x_N$ est identifié au nœud $x_0$ ($y_N \equiv y_0$), et l'on impose à l'interpolant $S$ les conditions aux limites périodiques
 \begin{equation}
-    S(x_0) = S(x_N), \qquad S'(x_0) = S'(x_N), \qquad S''(x_0) = S''(x_N),
+    S(x_0) = S(x_N), \qquad S'(x_0) = S'(x_N), \qquad S''(x_0) = S''(x_N)
     \label{eq:periodiques}
 \end{equation}
 qui garantissent la continuité de la position, de la vitesse \emph{et} de l'accélération au passage d'un cycle au suivant. La continuité de la dérivée première fournit, avec un pas uniforme $h = 1$, le système de $N$ équations
 \begin{equation}
-    y''_{i-1} + 4\,y''_i + y''_{i+1} = 6\left(y_{i+1} - 2y_i + y_{i-1}\right),
-    \qquad i = 0,\dots,N-1,
+    y''_{i-1} + 4\,y''_i + y''_{i+1} = 6\left(y_{i+1} - 2y_i + y_{i-1}\right)
+    \qquad i = 0,\dots,N-1
     \label{eq:systeme-cyclique}
 \end{equation}
 où tous les indices sont pris modulo $N$. Sous forme matricielle, la périodicité introduit deux termes de couplage aux coins de la matrice, qui devient \emph{tridiagonale cyclique} :
@@ -333,23 +354,25 @@ où tous les indices sont pris modulo $N$. Sous forme matricielle, la périodici
         \vdots \\
         y_{N-1} - 2y_{N-2} + y_{N-3} \\
         y_0 - 2y_{N-1} + y_{N-2}
-    \end{pmatrix}.
+    \end{pmatrix}
     \label{eq:matrice-cyclique}
 \end{equation}
 Ce système n'est plus strictement tridiagonal, mais il se résout toujours en $\mathcal{O}(N)$ grâce à la formule de \textsc{Sherman--Morrison} : la matrice $A$ de~\eqref{eq:matrice-cyclique} s'écrit comme une correction de rang~1 d'une matrice tridiagonale ordinaire $T$,
 \begin{equation}
     A = T + u\,v^{\mathsf{T}}, \qquad
     u = (\gamma,\, 0,\, \dots,\, 0,\, 1)^{\mathsf{T}}, \qquad
-    v = (1,\, 0,\, \dots,\, 0,\, 1/\gamma)^{\mathsf{T}},
+    v = (1,\, 0,\, \dots,\, 0,\, 1/\gamma)^{\mathsf{T}}
 \end{equation}
 avec $\gamma = -4$ (choix conventionnel assurant le bon conditionnement de $T$). 
 
-\paragraph{Résolution du système cyclique : décomposition de Sherman--Morrison et algorithme de Thomas.} Le système~\eqref{eq:matrice-cyclique} n'est pas tridiagonal à cause des deux coefficients de coin $A_{0,N-1} = A_{N-1,0} = 1$. On l'écrit comme une perturbation de rang~1 d'une matrice tridiagonale ordinaire $T$ :
+\subsection{Résolution du système cyclique}
+
+\paragraph{Décomposition de Sherman--Morrison et algorithme de Thomas :} Le système~\eqref{eq:matrice-cyclique} n'est pas tridiagonal à cause des deux coefficients de coin $A_{0,N-1} = A_{N-1,0} = 1$. On l'écrit comme une perturbation de rang~1 d'une matrice tridiagonale ordinaire $T$ :
 \begin{equation}
-    A = T + u\,v^{\mathsf{T}}, \qquad
-    u = \begin{pmatrix} \gamma \\ 0 \\ \vdots \\ 0 \\ 1 \end{pmatrix}, \qquad
-    v = \begin{pmatrix} 1 \\ 0 \\ \vdots \\ 0 \\ 1/\gamma \end{pmatrix},
-    \qquad \gamma = -4,
+    A = T + u\,v^{\mathsf{T}} \qquad
+    u = \begin{pmatrix} \gamma \\ 0 \\ \vdots \\ 0 \\ 1 \end{pmatrix} \qquad
+    v = \begin{pmatrix} 1 \\ 0 \\ \vdots \\ 0 \\ 1/\gamma \end{pmatrix}
+    \qquad \gamma = -4
     \label{eq:sherman-morrison-setup}
 \end{equation}
 où $\gamma$ est un paramètre libre choisi de sorte que $T$ reste bien conditionnée (ici $\gamma = -4$, l'opposé du terme diagonal courant). Le produit $u\,v^{\mathsf{T}}$ ne modifie que les quatre coins de la matrice :
@@ -357,7 +380,7 @@ où $\gamma$ est un paramètre libre choisi de sorte que $T$ reste bien conditio
     (u\,v^{\mathsf{T}})_{0,0} = \gamma, \quad
     (u\,v^{\mathsf{T}})_{0,N-1} = \gamma/\gamma = 1, \quad
     (u\,v^{\mathsf{T}})_{N-1,0} = 1, \quad
-    (u\,v^{\mathsf{T}})_{N-1,N-1} = 1/\gamma,
+    (u\,v^{\mathsf{T}})_{N-1,N-1} = 1/\gamma
 \end{equation}
 si bien que $T = A - u\,v^{\mathsf{T}}$ est \emph{exactement} tridiagonale, de diagonale
 \begin{equation}
@@ -367,13 +390,13 @@ si bien que $T = A - u\,v^{\mathsf{T}}$ est \emph{exactement} tridiagonale, de d
         4 - \dfrac{1}{\gamma} = 4{,}25 & \text{si } i = N-1, \\[6pt]
         4 & \text{sinon,}
     \end{cases}
-    \qquad T_{i,i-1} = T_{i,i+1} = 1,
+    \qquad T_{i,i-1} = T_{i,i+1} = 1
     \label{eq:T-diag}
 \end{equation}
 et de sous/sur-diagonales toutes égales à~1 (indices intérieurs). La formule de Sherman--Morrison donne alors la solution de $A\,y'' = d$ à partir de deux résolutions tridiagonales \emph{ordinaires} :
 \begin{equation}
     T z = d, \qquad T w = u, \qquad
-    y'' = z - \frac{v^{\mathsf{T}} z}{1 + v^{\mathsf{T}} w}\; w,
+    y'' = z - \frac{v^{\mathsf{T}} z}{1 + v^{\mathsf{T}} w}\; w
     \label{eq:sherman-morrison-solution}
 \end{equation}
 où, compte tenu de la forme creuse de $v$, le produit scalaire se réduit à $v^{\mathsf{T}} z = z_0 + z_{N-1}/\gamma$ (et de même pour $v^{\mathsf{T}} w$) : seules les composantes de tête et de queue des vecteurs interviennent, aucune matrice n'est jamais formée explicitement.\\
@@ -383,19 +406,19 @@ Chacun des deux systèmes tridiagonaux $Tz=d$ et $Tw=u$ est résolu par l'\emph{
 \begin{enumerate}
     \item \textbf{Balayage avant (élimination) :} on élimine la sous-diagonale ligne après ligne, en substituant dans chaque équation le pivot de la ligne précédente. On initialise
     \begin{equation}
-        c'_0 = \frac{1}{T_{0,0}}, \qquad x_0 = \frac{r_0}{T_{0,0}},
+        c'_0 = \frac{1}{T_{0,0}}, \qquad x_0 = \frac{r_0}{T_{0,0}}
     \end{equation}
     puis, pour $i = 1, \dots, N-1$, en notant que le pivot effectif de la ligne $i$ après élimination de la colonne $i-1$ vaut $m_i = T_{i,i} - c'_{i-1}$ (la sur-diagonale de la ligne $i-1$ valant~1) :
     \begin{equation}
         m_i = T_{i,i} - c'_{i-1}, \qquad
         c'_i = \frac{1}{m_i}, \qquad
-        x_i = \frac{r_i - x_{i-1}}{m_i}.
+        x_i = \frac{r_i - x_{i-1}}{m_i}
         \label{eq:thomas-forward}
     \end{equation}
     À l'issue de cette passe, le système a été ramené à une forme \emph{bidiagonale supérieure} équivalente.
     \item \textbf{Substitution arrière :} on parcourt les indices en sens inverse pour propager la correction due aux termes sur-diagonaux, restés en suspens lors du balayage avant :
     \begin{equation}
-        x_i \leftarrow x_i - c'_i\, x_{i+1}, \qquad i = N-2,\, N-3,\, \dots,\, 0.
+        x_i \leftarrow x_i - c'_i\, x_{i+1}, \qquad i = N-2,\, N-3,\, \dots,\, 0
         \label{eq:thomas-backward}
     \end{equation}
 \end{enumerate}
@@ -403,7 +426,7 @@ Les deux passes ne coûtent chacune que $\mathcal{O}(N)$ opérations arithmétiq
 
 \paragraph{Rééchantillonnage périodique et raccord de cycle.} Une fois le vecteur $y''$ connu, la courbe fermée est évaluée en $F$ points uniformément répartis sur une période, \emph{en excluant} le point de raccord (qui appartient au cycle suivant) :
 \begin{equation}
-    x_k = k\,\frac{N}{F}, \qquad k = 0,\, 1,\, \dots,\, F-1,
+    x_k = k\,\frac{N}{F}, \qquad k = 0,\, 1,\, \dots,\, F-1
 \end{equation}
 de sorte que le nombre de frames produites respecte exactement $F = f_{\mathrm{Hz}} \times T_{\mathrm{cycle}}$ et que la frame suivante ($k = F$, première frame du cycle suivant) tombe précisément sur $S(x_N) = y_0$. 
 
@@ -437,7 +460,9 @@ Enfin, à haute fréquence (90~Hz), la méthode maintient la très haute fidéli
 
 Par construction de l'interpolant périodique~\eqref{eq:periodiques}, la position, la vitesse et l'accélération sont rigoureusement continues au rebouclage : le raccord entre deux cycles consécutifs est de classe $\mathcal{C}^2$, au même titre que n'importe quel point intérieur de la trajectoire. L'élan du mouvement de nage est ainsi intégralement conservé d'un cycle au suivant, et les à-coups moteurs au rebouclage sont éliminés non plus approximativement mais exactement. En pratique, la discontinuité résiduelle de vitesse mesurée au raccord est inférieure à la variation de vitesse maximale observée à l'intérieur du cycle. Notons enfin que si le fichier source se termine explicitement par une copie de sa première frame, ce doublon est retiré avant l'ajustement afin de ne pas introduire de nœud double dans la période.\\
 
-\textbf{Rampe Minimum-Jerk :} Pour le déplacement vers la position initiale, le firmware C++ génère désormais une trajectoire d'approche polynomiale de degré 5 (\textit{minimum-jerk}). L'équation temporelle normalisée est :
+\subsection{Rampe Minimum-Jerk} 
+
+Pour le déplacement vers la position initiale, le firmware C++ génère désormais une trajectoire d'approche polynomiale de degré 5 (\textit{minimum-jerk}). L'équation temporelle normalisée est :
 \begin{equation}
 s(t) = 6t^5 - 15t^4 + 10t^3, \quad t \in [0,1]
 \end{equation}
@@ -461,71 +486,7 @@ Cette sécurisation logicielle est couplée à un bridage matériel temporaire d
 
 \textbf{Correction de la boucle CPU :} La limitation à 15 Hz a été résolue en séparant drastiquement les appels UART bloquants de la gestion réseau (SSE), et en forçant la réinitialisation des timers matériels de l'ESP32 au lancement du mouvement.
 
-
-\subsection{Fiabilité de la Position Initiale (Boucle Fermée)}
-\paragraph{Problème identifié :} L'interface web autorisait le lancement du mouvement (\textit{Play}) de manière "aveugle", dès que l'utilisateur cliquait sur le bouton d'initialisation, sans garantie que les moteurs aient physiquement atteint leur position (notamment à cause de paquets réseau perdus).
-
-\paragraph{Résolution :} J'ai transformé cette logique en une \textbf{architecture en boucle fermée}. Lors de la commande d'initialisation, le microcontrôleur lit en continu la position réelle des moteurs via un \textit{Sync Read}. Il ne renvoie l'état de confirmation (\texttt{initial\_pose}) via SSE que lorsque tous les moteurs sont dans une tolérance stricte de $\pm 30$ ticks (environ $\pm 2,6^\circ$). Côté web, le bouton \textit{Play} reste strictement verrouillé tant que cette confirmation matérielle n'est pas reçue par le JavaScript.\\
-
-Le problème est que cette architecture a sur-contraint l'utilisation du bouton \textit{Play}. Parfois, même lorsque les moteurs sont physiquement à leur position initiale, un faux négatif logiciel empêche le lancement du mouvement. Pour pallier cette rigidité, et grâce à Daito-san, un système de \textit{bypass} des contraintes a été mis en place sous la forme d'un interrupteur de forçage manuel (\textit{Safety Override}).\\
-
-Ce système permet de désactiver individuellement trois conditions de sécurité préalables au lancement :
-\begin{enumerate}
-    \item \textbf{\textit{Ignore start-frame match}} : désactive la vérification stricte validant que la position physique actuelle correspond exactement à la position théorique de la frame de départ ;
-    \item \textbf{\textit{Ignore state check}} : ignore la validation de l'état global du système (télémétrie nominale, détection de tous les moteurs, absence d'erreurs de courant/tension) ;
-    \item \textbf{\textit{Ignore recalc pending}} : autorise le lancement même si les paramètres de temps ou de fréquence (\textit{Motion Settings}) ont été modifiés sans qu'un recalcul de la trajectoire n'ait été effectué.
-\end{enumerate}
-
-En pratique, lors de nos essais sur le robot physique, ce sont très majoritairement les deux premières conditions qui n'étaient pas respectées. De légères fluctuations des capteurs ou la perte de quelques paquets RS-485 lors du scan suffisaient à générer un faux positif et à bloquer intempestivement le système. En cochant ces options via le \textit{Safety Override}, l'opérateur assume l'état matériel et le bouton \textit{Play} est forcé à l'état actif. Cela redonne le contrôle total à l'utilisateur et évite que la sur-sécurisation du logiciel ne devienne un frein à l'expérimentation matérielle.
-
-\subsection{Implémentation de la Télémétrie : Résilience, Latence et Gestion Mémoire}
-
-\paragraph{Résilience réseau :}
-Dans le contexte d'une utilisation sous-marine, les micro-coupures Wi-Fi figeaient fréquemment l'interface web sans en avertir l'utilisateur. Pour rendre le système résilient aux pertes de signal, j'ai développé un \textit{Watchdog} en JavaScript qui surveille le flux \textit{Server-Sent Events} (SSE). S'il n'y a pas de données reçues pendant 600 ms, l'interface affiche une alerte \og OFFLINE \fg{} et tente une reconnexion silencieuse.
-
-\paragraph{Le défi de la mémoire :}
-Parallèlement, j'ai souhaité intégrer la possibilité d'acquérir les logs télémétriques (position, courant, tension, IMU) de chaque essai. Le premier problème identifié fut le risque de saturation de la mémoire vive (PSRAM) de l'ESP32 si ce dernier devait générer et stocker un fichier texte au format CSV. La solution a été d'enregistrer ces logs sous la forme d'un buffer binaire brut, extrêmement compact. La structure logicielle d'un cycle de log a été optimisée comme présenté dans le tableau \ref{tab:telemetry}.
-
-\begin{table}[h]
-\centering
-\begin{tabular}{|l|c|l|}
-\hline
-\textbf{Champ} & \textbf{Type} & \textbf{Description} \\ \hline
-\texttt{t\_us} & \texttt{uint32} & Timestamp en microsecondes \\ \hline
-\texttt{accel[3], gyro[3]} & $6 \times \texttt{int16}$ & IMU (milli-g, deci-deg/s) \\ \hline
-\texttt{cmd, pos, cur} & \texttt{int16, int32, int16} & (Par moteur) Consigne, Position, Courant \\ \hline
-\texttt{volt} & \texttt{uint16} & (Par moteur) Tension \\ \hline
-\end{tabular}
-\caption{Structure de l'enregistrement binaire des logs télémétriques}
-\label{tab:telemetry}
-\end{table}
-
-\paragraph{Le défi de la latence physique :}
-Cependant, lors des premiers essais d'enregistrement sur l'intégralité des 21 moteurs, un second obstacle majeur est apparu : une chute drastique de la fréquence de contrôle. Le mouvement du robot devenait fortement saccadé, entraînant une perte de trames et une dégradation de la dynamique de nage. Ce problème ne provenait pas d'une saturation mémoire, mais des limites physiques du bus de communication RS-485 fonctionnant en \textit{half-duplex}.\\
-
-Si l'envoi des consignes (\texttt{SyncWrite}) est quasi instantané grâce à son mode de diffusion (\textit{broadcast}), la lecture des états (\texttt{SyncRead}) oblige chaque moteur à répondre séquentiellement. Le temps de réponse individuel s'élevant à environ 3 à 4 ms par moteur, interroger l'ensemble des actionneurs en une seule passe figeait la boucle de contrôle pendant 60 à 80 ms (dépassant largement la période critique de 10 ms pour un contrôle à 100 Hz).
-
-\paragraph{Modulation de l'acquisition :}
-Pour résoudre ce conflit temporel entre la fluidité du mouvement et l'acquisition des données, l'architecture a été repensée selon deux axes :
-\begin{itemize}
-    \item \textbf{Sélection spatiale (UI) :} J'ai intégré un schéma SVG interactif du robot sur l'interface web, permettant à l'utilisateur de cliquer sur les articulations pour ne sélectionner que les moteurs pertinents ($N$ moteurs au lieu de 21 systématiquement).
-    \item \textbf{Sélection temporelle et lissage :} Le code embarqué sépare désormais l'envoi des commandes de la lecture des capteurs. L'utilisateur peut définir un espacement d'échantillonnage (\textit{Feedback sampling every $K$ frames}), afin de ne pas logger systématiquement toutes les frames. De plus, une lecture par rotation (\textit{Round-Robin}) a été introduite (\textit{Motors polled per cycle}) pour n'interroger qu'un petit sous-groupe de moteurs par cycle d'horloge, plafonnant l'occupation du bus à $\approx 7$ ms et préservant l'intégrité de la boucle de contrôle.
-\end{itemize}
-
-\paragraph{Modèle d'empreinte mémoire :}
-Grâce à cette organisation temporelle et structurelle, l'espacement (\textit{stride}) par enregistrement est réduit à $16 + 10N$ octets. La taille totale en mémoire vive du buffer binaire, notée $M$, dépend donc du nombre de moteurs sélectionnés $N$, du nombre total de frames $F$ de la trajectoire, et de l'intervalle d'échantillonnage $K$ (une frame enregistrée toutes les $K$ frames). La formule générique s'écrit :
-\begin{equation}
-M(N, F, K) = \left\lfloor \frac{F}{K} \right\rfloor \times (16 + 10N)
-\end{equation}
-
-Pour évaluer la charge mémoire dans le scénario le plus exigeant (enregistrement complet sans aucune sélection ni échantillonnage), prenons $N = 21$ moteurs, cadencés à 72 Hz sur 2 secondes, soit $F = 144$ frames, avec un enregistrement à chaque frame ($K = 1$) :
-\begin{align*}
-M(21, 144, 1) &= \left\lfloor \frac{144}{1} \right\rfloor \times (16 + 10 \times 21) \\
-M(21, 144, 1) &= 144 \times 226 \\
-M(21, 144, 1) &= 32544 \text{ octets}
-\end{align*}
-
-Même dans ce pire scénario, le buffer ne demande que $\approx 32,54 \text{ kB}$ de RAM, ce qui reste parfaitement négligeable par rapport aux 2 MB alloués par la puce. À la fin de l'essai, ce bloc binaire compact est transféré au navigateur web. C'est le code JavaScript de l'ordinateur client qui se charge du traitement lourd : il décode le binaire, construit le fichier texte \texttt{.csv} complet et génère automatiquement le téléchargement du fichier hors ligne pour l'utilisateur.
+\section{Implémentation d'un contrôleur PID}
 
 \newpage
 
@@ -573,7 +534,7 @@ Le micrologiciel transmet l'accélération en milli-$g$ et la vitesse angulaire 
 \begin{equation}
 \mathbf{a}=\frac{1}{1000}\,\mathbf{a}_{\text{raw}}\ [\,g\,],
 \qquad
-\boldsymbol{\omega}=\frac{1}{10}\,\boldsymbol{\omega}_{\text{raw}}\ [\,^\circ\!/\mathrm{s}\,].
+\boldsymbol{\omega}=\frac{1}{10}\,\boldsymbol{\omega}_{\text{raw}}\ [\,^\circ\!/\mathrm{s}\,]
 \end{equation}
 Une zone morte est ensuite appliquée composante par composante au gyroscope, afin de neutraliser le bruit de repos responsable de la dérive lente du lacet :
 \begin{equation}
@@ -582,25 +543,25 @@ Une zone morte est ensuite appliquée composante par composante au gyroscope, af
 0 & \text{si } |\omega_i|<\omega_{\mathrm{db}},\\
 \omega_i & \text{sinon,}
 \end{cases}
-\qquad i\in\{x,y,z\},\quad \omega_{\mathrm{db}}=1{.}2~^\circ\!/\mathrm{s}.
+\qquad i\in\{x,y,z\},\quad \omega_{\mathrm{db}}=1{.}2~^\circ\!/\mathrm{s}
 \end{equation}
 
 \paragraph{Référence gravitaire (accéléromètre) : socle physique du roulis.}
 Au repos, l'accéléromètre mesure la réaction à la pesanteur, soit un vecteur de norme unité (en $g$) colinéaire à la verticale locale. Sa projection sur les axes du repère fournit une estimation \emph{sans dérive} de l'inclinaison. En supposant le capteur quasi statique, la gravité mesurée s'écrit dans $\mathcal B$
 \begin{equation}
 \mathbf{a}=\mathbf{R}(\phi,\theta)^{\mathsf T}
-\begin{pmatrix}0\\0\\1\end{pmatrix},
+\begin{pmatrix}0\\0\\1\end{pmatrix}
 \end{equation}
 ce qui, en développant la matrice de rotation pour un roulis $\phi$ (autour de $X$) et un tangage $\theta$ (autour de $Y$), conduit aux composantes
 \begin{equation}
 A_x=-\sin\theta,\qquad
 A_y=\cos\theta\,\sin\phi,\qquad
-A_z=\cos\theta\,\cos\phi.
+A_z=\cos\theta\,\cos\phi
 \end{equation}
 On en déduit, par élimination et usage de la fonction $\operatorname{arctan2}$ (qui lève l'ambiguïté de quadrant sur $[-\pi,\pi]$), les angles d'inclinaison \emph{instantanés} :
 \begin{empheq}[box=\fbox]{align}
-\phi_{\text{acc}} &= \operatorname{arctan2}\!\big(A_y,\;A_z\big), \label{eq:roll_acc}\\
-\theta_{\text{acc}} &= \operatorname{arctan2}\!\Big(-A_x,\;\sqrt{A_y^{2}+A_z^{2}}\Big). \label{eq:pitch_acc}
+\phi_{\text{acc}} &= \operatorname{arctan2}\!\big(A_y,\;A_z\big) \label{eq:roll_acc}\\
+\theta_{\text{acc}} &= \operatorname{arctan2}\!\Big(-A_x,\;\sqrt{A_y^{2}+A_z^{2}}\Big) \label{eq:pitch_acc}
 \end{empheq}
 L'équation~\eqref{eq:roll_acc} constitue le socle physique de l'estimation du roulis. Toutefois, l'accéléromètre présente deux limites structurelles : il est \emph{aveugle au lacet} (la gravité est invariante par rotation autour de la verticale, si bien que $\psi$ n'apparaît dans aucune des équations ci-dessus), et il est fortement bruité dès que le capteur subit une accélération propre (vibrations des 21 moteurs Dynamixel, chocs), le vecteur mesuré n'étant alors plus purement gravitaire.
 
@@ -608,14 +569,14 @@ L'équation~\eqref{eq:roll_acc} constitue le socle physique de l'estimation du r
 Le gyroscope fournit la vitesse angulaire instantanée et permet, par intégration, un suivi fin et à faible latence de l'orientation ; il souffre en revanche d'une dérive cumulative (biais intégré). La démarche de fusion consiste donc à combiner la stabilité long terme de l'accéléromètre~\eqref{eq:roll_acc}--\eqref{eq:pitch_acc} avec la réactivité court terme du gyroscope. Plutôt que de manipuler des angles d'Euler (sujets au blocage de cardan), l'orientation est portée par un quaternion d'attitude $q_{\text{raw}}$ ($\mathcal B\rightarrow\mathcal W$) dont la cinématique obéit à
 \begin{equation}
 \dot{q}=\tfrac{1}{2}\,q\otimes
-\begin{pmatrix}0\\ \boldsymbol{\omega}\end{pmatrix},
+\begin{pmatrix}0\\ \boldsymbol{\omega}\end{pmatrix}
 \label{eq:kinematics}
 \end{equation}
 $\boldsymbol{\omega}$ étant exprimé dans le repère corps. L'implémentation intègre~\eqref{eq:kinematics} par la carte exponentielle exacte sur chaque intervalle $\Delta t$ mesuré localement : en posant $\boldsymbol{\omega}$ en $\mathrm{rad/s}$, $\Omega=\lVert\boldsymbol{\omega}\rVert$ et $\mathbf{n}=\boldsymbol{\omega}/\Omega$,
 \begin{equation}
 \delta q=\Big(\cos\tfrac{\Omega\,\Delta t}{2},\;\mathbf{n}\,\sin\tfrac{\Omega\,\Delta t}{2}\Big),
 \qquad
-q_{\text{raw}}\leftarrow q_{\text{raw}}\otimes\delta q .
+q_{\text{raw}}\leftarrow q_{\text{raw}}\otimes\delta q 
 \label{eq:gyro_step}
 \end{equation}
 La post-multiplication (à droite) traduit le caractère \emph{local} (repère mobile) de la rotation mesurée par le gyroscope.
@@ -623,7 +584,7 @@ La post-multiplication (à droite) traduit le caractère \emph{local} (repère m
 \paragraph{Initialisation de l'attitude.}
 Soit $\hat{\mathbf{u}}=\mathbf{a}/\lVert\mathbf{a}\rVert$ la direction de la pesanteur mesurée dans $\mathcal B$. Le quaternion initial est le plus court arc amenant $\hat{\mathbf{u}}$ sur $\mathbf{z}_{\mathcal W}$ :
 \begin{equation}
-q_{\text{raw}}^{(0)}=\frac{\big(1+\hat{\mathbf{u}}\cdot\mathbf{z}_{\mathcal W},\;\hat{\mathbf{u}}\times\mathbf{z}_{\mathcal W}\big)}{\big\lVert\big(1+\hat{\mathbf{u}}\cdot\mathbf{z}_{\mathcal W},\;\hat{\mathbf{u}}\times\mathbf{z}_{\mathcal W}\big)\big\rVert},
+q_{\text{raw}}^{(0)}=\frac{\big(1+\hat{\mathbf{u}}\cdot\mathbf{z}_{\mathcal W},\;\hat{\mathbf{u}}\times\mathbf{z}_{\mathcal W}\big)}{\big\lVert\big(1+\hat{\mathbf{u}}\cdot\mathbf{z}_{\mathcal W},\;\hat{\mathbf{u}}\times\mathbf{z}_{\mathcal W}\big)\big\rVert}
 \label{eq:seed}
 \end{equation}
 de sorte que l'estimation démarre à plat, le lacet étant fixé arbitrairement à zéro (cap purement relatif).
@@ -673,13 +634,13 @@ Avec les matrices de rotation élémentaires
 \begin{equation}
 R_x(\alpha)=\begin{pmatrix}1&0&0\\0&\cos\alpha&-\sin\alpha\\0&\sin\alpha&\cos\alpha\end{pmatrix},
 \qquad
-R_z(\beta)=\begin{pmatrix}\cos\beta&-\sin\beta&0\\\sin\beta&\cos\beta&0\\0&0&1\end{pmatrix},
+R_z(\beta)=\begin{pmatrix}\cos\beta&-\sin\beta&0\\\sin\beta&\cos\beta&0\\0&0&1\end{pmatrix}
 \end{equation}
 la composition \emph{intrinsèque} « $R_1$ puis $R_2$ autour de l'axe déjà tourné » s'obtient par \emph{post}-multiplication (et non $R_{z'}R_x$, qui correspondrait à des rotations extrinsèques) :
 \begin{equation}
 \mathbf{R}_{\text{calib}}=R_x(37{.}2^\circ)\,R_z(-90^\circ),
 \qquad
-R_z(-90^\circ)=\begin{pmatrix}0&1&0\\-1&0&0\\0&0&1\end{pmatrix}.
+R_z(-90^\circ)=\begin{pmatrix}0&1&0\\-1&0&0\\0&0&1\end{pmatrix}
 \label{eq:Rcalib}
 \end{equation}
 
@@ -688,15 +649,15 @@ Le code n'utilise pas $\mathbf{R}_{\text{calib}}$ mais son quaternion équivalen
 \begin{equation}
 q_x=q_{\mathbf{e}_x}(37{.}2^\circ)=\big(\cos 18{.}6^\circ,\,\sin 18{.}6^\circ,\,0,\,0\big),
 \qquad
-q_z=q_{\mathbf{e}_z}(-90^\circ)=\Big(\tfrac{\sqrt{2}}{2},\,0,\,0,\,-\tfrac{\sqrt{2}}{2}\Big),
+q_z=q_{\mathbf{e}_z}(-90^\circ)=\Big(\tfrac{\sqrt{2}}{2},\,0,\,0,\,-\tfrac{\sqrt{2}}{2}\Big)
 \end{equation}
 \begin{equation}
-\boxed{\,q_{\text{calib}}=q_x\otimes q_z\,}.
+\boxed{\,q_{\text{calib}}=q_x\otimes q_z\,}
 \label{eq:qcalib}
 \end{equation}
 L'attitude absolue du robot, la monture étant fixée au corps, résulte de la post-multiplication
 \begin{equation}
-\boxed{\,q_{\text{robot}}=q_{\text{raw}}\otimes q_{\text{calib}}\,}.
+\boxed{\,q_{\text{robot}}=q_{\text{raw}}\otimes q_{\text{calib}}\,}
 \label{eq:qrobot}
 \end{equation}
 On vérifie que l'axe vertical du robot pointe bien vers le haut : la composante verticale de son axe $Z$ dans $\mathcal W$ vaut $\cos(37{.}2^\circ)>0$ (Z-Up), alors que la version antérieure à $+217{.}2^\circ$ donnait $\cos(217{.}2^\circ)<0$ (Z-Down).
@@ -706,11 +667,11 @@ On vérifie que l'axe vertical du robot pointe bien vers le haut : la composante
 
 L'utilisateur définit la pose courante comme origine $(0,0,0)$. On mémorise l'inverse (conjugué) de l'attitude transformée à l'instant du déclenchement, $q_{\text{robot}}^{(0)}$ :
 \begin{equation}
-q_{\text{tare}}=\big(q_{\text{robot}}^{(0)}\big)^{-1}=\big(q_{\text{robot}}^{(0)}\big)^{*},
+q_{\text{tare}}=\big(q_{\text{robot}}^{(0)}\big)^{-1}=\big(q_{\text{robot}}^{(0)}\big)^{*}
 \end{equation}
 puis l'attitude affichée est référencée à chaque échantillon par
 \begin{equation}
-\boxed{\,q_{\text{display}}=q_{\text{tare}}^{-1}\otimes q_{\text{robot}}\,}.
+\boxed{\,q_{\text{display}}=q_{\text{tare}}^{-1}\otimes q_{\text{robot}}\,}
 \label{eq:qdisplay}
 \end{equation}
 Par construction, $q_{\text{display}}=\mathbf{1}$ (identité, soit $0^\circ$) lorsque $q_{\text{robot}}=q_{\text{robot}}^{(0)}$ : tout retour à la pose de référence ramène rigoureusement l'affichage à zéro. Ce mécanisme est de surcroît initialisé automatiquement au premier échantillon valide, ce qui garantit un affichage nul au démarrage, indépendamment de l'orientation matérielle de la carte.
@@ -721,33 +682,35 @@ Par construction, $q_{\text{display}}=\mathbf{1}$ (identité, soit $0^\circ$) lo
 \paragraph{Conversion en angles d'Euler.}
 Les angles finaux sont extraits de $q_{\text{display}}$ par conversion en angles de Tait--Bryan selon l'ordre $Z\!-\!Y\!-\!X$. Ce choix est justifié par la structure du problème : dans une décomposition à trois axes, seul l'axe \emph{intermédiaire} porte la singularité (blocage de cardan) à $\pm90^\circ$. En plaçant le \emph{tangage} ($Y$) en position intermédiaire, on garantit que le \emph{roulis} ($X$) et le \emph{lacet} ($Z$), axes externes, restent lisibles sans dégénérescence tant que le tangage demeure éloigné de $\pm90^\circ$ --- ce qui est le cas d'un robot nageant à plat. Un ordre plaçant $X$ ou $Z$ au centre (par exemple $Z\!X\!Y$ ou $Y\!X\!Z$) provoquerait au contraire un blocage à $90^\circ$ de roulis et corromprait la lecture du lacet. En notant $q_{\text{display}}=(q_w,q_x,q_y,q_z)$, les éléments de la matrice de rotation associée donnent
 \begin{empheq}[box=\fbox]{align}
-\phi\ (\text{roll}) &= \operatorname{arctan2}\!\big(2(q_yq_z+q_wq_x),\;1-2(q_x^{2}+q_y^{2})\big), \label{eq:roll}\\
-\theta\ (\text{pitch}) &= \arcsin\!\big(2(q_wq_y-q_xq_z)\big), \label{eq:pitch}\\
-\psi\ (\text{yaw}) &= \operatorname{arctan2}\!\big(2(q_xq_y+q_wq_z),\;1-2(q_y^{2}+q_z^{2})\big). \label{eq:yaw}
+\phi\ (\text{roll}) &= \operatorname{arctan2}\!\big(2(q_yq_z+q_wq_x),\;1-2(q_x^{2}+q_y^{2})\big) \label{eq:roll}\\
+\theta\ (\text{pitch}) &= \arcsin\!\big(2(q_wq_y-q_xq_z)\big) \label{eq:pitch}\\
+\psi\ (\text{yaw}) &= \operatorname{arctan2}\!\big(2(q_xq_y+q_wq_z),\;1-2(q_y^{2}+q_z^{2})\big) \label{eq:yaw}
 \end{empheq}
 Seuls le roulis~\eqref{eq:roll} et le lacet~\eqref{eq:yaw} sont retenus pour l'affichage. Dans le repère Z-Up définitif ($R_2=-90^\circ$), le lacet suit la règle de la main droite autour de la verticale ascendante : un cap physique positif produit un $\psi$ positif, en accord avec l'avatar 3D (piloté directement par $q_{\text{display}}$). Les valeurs affichées sont $\phi^{\circ}=\tfrac{180}{\pi}\phi$ et $\psi^{\circ}=\tfrac{180}{\pi}\psi$.
 
 \paragraph{Filtre passe-bas.}
 Malgré la fusion, les angles $\phi^{\circ}$ et $\psi^{\circ}$ conservent un bruit résiduel : bruit de mesure de l'IMU, vibrations induites par les moteurs, et micro-oscillations à l'arrêt. Un filtre passe-bas du premier ordre (moyenne mobile exponentielle) est appliqué \emph{uniquement} sur ces deux angles finaux. Dans le régime continu (hors discontinuité angulaire), la récurrence discrète s'écrit
 \begin{equation}
-\boxed{\,y[n]=\alpha\,x[n]+(1-\alpha)\,y[n-1]\,},\qquad \alpha=0{.}2,
+\boxed{\,y[n]=\alpha\,x[n]+(1-\alpha)\,y[n-1]\,},\qquad \alpha=0{.}2
 \label{eq:ema}
 \end{equation}
 où $x[n]$ est l'angle brut extrait~\eqref{eq:roll} ou~\eqref{eq:yaw} et $y[n]$ la valeur lissée affichée. Afin d'éviter tout artefact au franchissement de la discontinuité $\pm180^\circ$, l'implémentation opère sur le \emph{plus court arc}: l'écart $x[n]-y[n-1]$ est ramené dans $(-180^\circ,180^\circ]$ avant pondération,
 \begin{equation}
 \Delta[n]=\big((x[n]-y[n-1]+180^\circ)\bmod 360^\circ\big)-180^\circ,
 \qquad
-y[n]=y[n-1]+\alpha\,\Delta[n],
+y[n]=y[n-1]+\alpha\,\Delta[n]
 \label{eq:ema_wrap}
 \end{equation}
 la sortie étant elle-même repliée dans $(-180^\circ,180^\circ]$ ; hors discontinuité, \eqref{eq:ema_wrap} est strictement équivalente à~\eqref{eq:ema}. La fréquence de coupure associée dépend de la période d'échantillonnage $T_s$ (flux transmis à cadence variable) et vérifie
 \begin{equation}
 \cos\!\big(2\pi f_c T_s\big)=1-\frac{\alpha^{2}}{2(1-\alpha)},
 \qquad\text{soit, pour }\alpha\ll1,\quad
-f_c\approx\frac{\alpha}{2\pi(1-\alpha)\,T_s}\approx\frac{0{.}0398}{T_s}.
+f_c\approx\frac{\alpha}{2\pi(1-\alpha)\,T_s}\approx\frac{0{.}0398}{T_s}
 \end{equation}
 Pour une cadence typique $f_s=1/T_s\approx50~\mathrm{Hz}$, il vient $f_c\approx2~\mathrm{Hz}$, ce qui atténue efficacement les vibrations mécaniques tout en préservant la dynamique du geste de nage. Enfin, le modèle 3D de l'avatar est piloté directement par le quaternion $q_{\text{display}}$ \eqref{eq:qdisplay} --- non filtré et exempt de blocage de cardan ---, tandis que seul l'affichage numérique (HUD) reçoit les valeurs lissées et arrondies $\operatorname{round}(y[n])$.
 
+
+\section{Adaptation d'une Simulation marine}
 
 \section{Conclusion}
 Fin du stage !
