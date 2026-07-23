@@ -71,7 +71,7 @@ Ceci est le début de mon rapport. Je peux citer des articles scientifiques trè
 
 \newpage
 
-\subsection{Mise à niveau matérielle du SWUMANOID}
+\subsection{Missions assignées}
 
 Le projet SWUMANOID vise à développer le firmware d'un contrôleur de robot humanoïde. Le système embarqué est construit sur le système de compilation \textbf{PlatformIO}, utilisant le framework \textbf{Arduino} sur un microcontrôleur \textbf{Espressif ESP32-S3}. Le firmware gère le contrôle en temps réel des servomoteurs via un bus RS-485 Dynamixel, la mesure inertielle, la communication sans fil via un point d'accès Wi-Fi, et la lecture de mouvements à partir de fichiers stockés sur le système de fichiers flash interne.
 
@@ -101,10 +101,6 @@ Pour cela, le \textbf{M5Stack AtomS3R} (intégrant un ESP32-S3) est beaucoup plu
     \item Remplacer la lenteur des cartes SD par une écriture ultra-rapide des logs directement dans la PSRAM du microcontrôleur.
 \end{itemize}
 
-
-% ================================================================
-\subsection{Missions assignées}
-% ================================================================
 
 Ma première mission technique consistait à \textbf{migrer la couche des pilotes matériels} d'un accès aux registres codé à la main et spécifique à la carte, vers la bibliothèque d'abstraction \textbf{M5Unified}, qui prend en charge nativement à la fois l'AtomS3 et l'AtomS3R. La migration a été circonscrite à deux pilotes, en préservant entièrement le reste de l'architecture du firmware :
 
@@ -178,36 +174,7 @@ S(21, 144) &= 6075 \text{ octets}
 Avec un \textit{payload} réseau strictement égal à 6075 octets (environ 6,07 kB), l'AtomS3R peut aisément absorber la totalité de la trajectoire en un seul envoi. L'interface web a été repensée en cinq panneaux verticaux (Status, Network \& Scan, IMU Lab, Motion Control, Motion Settings \& Logs) pour une meilleure lisibilité. Enfin, les communications temps réel reposent désormais sur des \textit{Server-Sent Events} (SSE) unidirectionnels plutôt que sur des WebSockets, éliminant ainsi les problèmes de gigue (\textit{jitter}) et de collision sur le bus RS-485.
 
 
-\subsection{Validation du Bus RS-485}
-Le cœur du robot étant la communication avec ses 21 moteurs Dynamixel, j'ai mis de côté le Wi-Fi et la machine à états pour réaliser un test purement matériel sur la puce RS-485. J'ai commencé par faire un test sur un seul moteur avec un cablage simple et cela fonctionnait très bien. J'ai envoyé avec succès des commandes brutes (\textit{Ping}, \textit{Torque Enable}, et mouvements de base) au moteur, prouvant que le câblage différentiel (Data+/Data-), l'alimentation 12V et l'ESP32 fonctionnent parfaitement ensemble. J'avais quelques pertes de paquet (environ $2\%$) mais ce n'était pas dérangeant car le mouvement restait fluide et précis.\\
-
-Ensuite j'ai tenté de réalisé un nouveau cablâge avec un moteur supplémentaire, le XM540-W150-R qui n'est pas utilisé dans le SWUMANOID mais qui possède toutes les propriétés d'un moteur dynamixel. C'était pour simuler un peu plus la configuration du robot et ainsi controlé plusieurs moteurs à la fois. Cependant cela s'est avéré difficile.\\
-
-En effet, le cablage n'était pas parfait et je n'arrivais pas à détecter les deux moteurs en meme temps. C'est pour cela que j'ai que j'ai opté pour cette configuration \\
-
-Une alimentation en Étoile : Le 12V et le GND partent du générateur et vont directement et indépendamment vers la base AtomS3R, le moteur XM, et le moteur XW. Tous partagent une masse commune stricte. Les Données sont mises en Série (Daisy-Chain) : Les signaux D+ (A) et D- (B) partent de l'AtomS3R, entrent dans le port 1 du XM540, ressortent par le port 2, et finissent dans le port unique du XW430.\\
-
-Cependant malgré cela j'avais des grosses pertes de paquet (environ $80\%$) ce qui donnait un mouvement des moteurs très saccadé. Ainsi pour attenuer le bruit et éviter que les signaux electriques ne rebondissent en bout de ligne, j'ai placé une résistance de 120 Ohms aux deux extrémités extrêmes du bus : Une sur le bornier de la base AtomS3R (entre A et B). Et une à l'autre extrémité, connectée sur le bornier du XW430.\\
-
-J'ai obtenu un mouvement super fluide et synchronisé des moteurs avec une perte de paquet estimée à $0\%$ ce qui est génial. Les moteurs sont très bien controlés et à une fréquence plus élevée que sur le SWUMANOID car j'ai réussi à les controlés à une fréquence de 100 Hz. Cependant le problème actuel est que je veux pouvoir les controler à une fréquence de 200 Hz, soit 2 fois plus. Pour y arriver il faudrait que j'utilise un baudrate sur les moteurs beaucoup plus élevé (au moins 1 Mbps) mais malheureusement malgré mes nombreux essaies je n'ai pas pu aller plus loin qu'un baudrate de 115200 bps. En effet à chaque fois que j'augmentais le baudrate plus haut, le micro controleur n'arrivait plus à détecter les moteurs, ceci est dû à une limitation matérielle de la base \textit{Atomic RS485}, et plus précisément à la manière dont elle pilote sa puce. La base repose sur un transceiver SP3485, capable en théorie d'atteindre 10\,Mbps. La puce n'est donc pas en cause : ce débit de 10\,Mbps correspond au débit \emph{brut}, c'est-à-dire à la vitesse des bits une fois que le sens de communication (émission ou réception) est déjà fixé.\\
-
-Or le bus Dynamixel est \textit{half-duplex} : une seule paire de fils (A/B) transporte les deux sens, et il faut donc basculer en permanence entre émission et réception. Ce basculement est commandé par une broche dédiée du transceiver, la broche \textit{DE} (\textit{Driver Enable}). Le problème est que la base M5Stack n'expose pas cette broche : elle ne sort que les lignes TX et RX, et confie le basculement à un \textbf{circuit de direction automatique} qui « écoute » la ligne de données afin de deviner seul quand émettre et quand recevoir.\\
-
-C'est ce circuit automatique et non la puce qui plafonne le débit. Il est calibré pour les basses vitesses : à 115200\,bps, un bit dure environ 8{,}7\,$\mu$s, ce qui lui laisse largement le temps de libérer le bus avant la réponse du moteur. À 1\,Mbps, un bit ne dure plus qu'environ 1\,$\mu$s : le circuit ne relâche plus la ligne assez vite, l'émission de la base écrase alors le début de la réponse du moteur, et le microcontrôleur ne reçoit plus aucun \textit{Status Packet}. C'est ce qui explique la perte totale de détection observée dès que je dépasse 115200\,bps.\\
-
-\paragraph{Résolution envisagée}
-La solution ne consiste pas à chercher une puce « plus rapide », puisque le SP3485 suffit déjà : il faut une carte sur laquelle la broche de direction DE est commandée \emph{explicitement} par le microcontrôleur, au lieu d'être confiée à un automate trop lent. Je prévois donc de remplacer la base \textit{Atomic RS485} par un petit transceiver SP3485 (ou MAX3485) en 3{,}3\,V exposant sa broche DE. Le matériel nécessaire :\\
-\begin{itemize}
-    \item une carte transceiver RS-485 en 3{,}3\,V avec broche DE accessible (puce SP3485, 10\,Mbps) ;
-    \item un convertisseur abaisseur 12\,V $\rightarrow$ 5\,V (type Pololu D24V10F5) pour alimenter l'AtomS3R, la base actuelle assurant cette conversion étant retirée ;
-    \item un boîtier de prototypage \textit{ATOM HUB Proto} pour intégrer proprement l'ensemble.
-\end{itemize}
-
-Le câblage reprend l'architecture déjà validée (alimentation en étoile, masse commune, terminaisons 120\,$\Omega$ inchangées) : seul l'étage de communication change. La broche DI du transceiver est reliée à la sortie TX (G6) de l'AtomS3R, la broche RO à l'entrée RX (G5), et les broches DE/RE réunies à un GPIO libre (G7). Côté logiciel, j'exploiterai le \textbf{mode RS-485 half-duplex matériel de l'UART de l'ESP32-S3} : la broche de direction (RTS) bascule automatiquement, en synchronisation directe avec le registre d'émission, sans latence logicielle. Le bus est ainsi libéré dès l'envoi du dernier bit, en moins d'une microseconde, ce qui rend le retournement de bus suffisamment rapide pour 1 comme pour 3\,Mbps.\\
-
-Une fois ce montage en place, il restera à reprogrammer le baudrate dans l'EEPROM de chaque moteur pour qu'il corresponde à celui du microcontrôleur, puis à valider la stabilité du bus (taux de perte de paquets, erreurs CRC) au nouveau débit. Le passage à 1\,Mbps suffit déjà théoriquement à atteindre les 200\,Hz visés avec une marge confortable, les 3\,Mbps constituant une réserve pour la montée en charge vers les 21 moteurs du SWUMANOID. Le passage des tests virtuels au robot physique SWUMANOID a montré des problèmes qui ont nécessité des refontes algorithmiques et logiques.
-
-\section{Implémentation de la Télémétrie et Gestion Mémoire}
+\subsection{Implémentation de la Télémétrie et Gestion Mémoire}
 
 \paragraph{Résilience réseau :}
 Dans le contexte d'une utilisation sous-marine, les micro-coupures Wi-Fi figeaient fréquemment l'interface web sans en avertir l'utilisateur. Pour rendre le système résilient aux pertes de signal, j'ai développé un \textit{Watchdog} en JavaScript qui surveille le flux \textit{Server-Sent Events} (SSE). S'il n'y a pas de données reçues pendant 600 ms, l'interface affiche une alerte \og OFFLINE \fg{} et tente une reconnexion silencieuse.
@@ -255,6 +222,37 @@ M(21, 144, 1) &= 32544 \text{ octets}
 \end{align*}
 
 Même dans ce pire scénario, le buffer ne demande que $\approx 32,54 \text{ kB}$ de RAM, ce qui reste parfaitement négligeable par rapport aux 2 MB alloués par la puce. À la fin de l'essai, ce bloc binaire compact est transféré au navigateur web. C'est le code JavaScript de l'ordinateur client qui se charge du traitement lourd : il décode le binaire, construit le fichier texte \texttt{.csv} complet et génère automatiquement le téléchargement du fichier hors ligne pour l'utilisateur.
+
+
+\section{Tests moteurs et configuration de la main board}
+Le cœur du robot étant la communication avec ses 21 moteurs Dynamixel, j'ai mis de côté le Wi-Fi et la machine à états pour réaliser un test purement matériel sur la puce RS-485. J'ai commencé par faire un test sur un seul moteur avec un cablage simple et cela fonctionnait très bien. J'ai envoyé avec succès des commandes brutes (\textit{Ping}, \textit{Torque Enable}, et mouvements de base) au moteur, prouvant que le câblage différentiel (Data+/Data-), l'alimentation 12V et l'ESP32 fonctionnent parfaitement ensemble. J'avais quelques pertes de paquet (environ $2\%$) mais ce n'était pas dérangeant car le mouvement restait fluide et précis.\\
+
+Ensuite j'ai tenté de réalisé un nouveau cablâge avec un moteur supplémentaire, le XM540-W150-R qui n'est pas utilisé dans le SWUMANOID mais qui possède toutes les propriétés d'un moteur dynamixel. C'était pour simuler un peu plus la configuration du robot et ainsi controlé plusieurs moteurs à la fois. Cependant cela s'est avéré difficile.\\
+
+En effet, le cablage n'était pas parfait et je n'arrivais pas à détecter les deux moteurs en meme temps. C'est pour cela que j'ai que j'ai opté pour cette configuration \\
+
+Une alimentation en Étoile : Le 12V et le GND partent du générateur et vont directement et indépendamment vers la base AtomS3R, le moteur XM, et le moteur XW. Tous partagent une masse commune stricte. Les Données sont mises en Série (Daisy-Chain) : Les signaux D+ (A) et D- (B) partent de l'AtomS3R, entrent dans le port 1 du XM540, ressortent par le port 2, et finissent dans le port unique du XW430.\\
+
+Cependant malgré cela j'avais des grosses pertes de paquet (environ $80\%$) ce qui donnait un mouvement des moteurs très saccadé. Ainsi pour attenuer le bruit et éviter que les signaux electriques ne rebondissent en bout de ligne, j'ai placé une résistance de 120 Ohms aux deux extrémités extrêmes du bus : Une sur le bornier de la base AtomS3R (entre A et B). Et une à l'autre extrémité, connectée sur le bornier du XW430.\\
+
+J'ai obtenu un mouvement super fluide et synchronisé des moteurs avec une perte de paquet estimée à $0\%$ ce qui est génial. Les moteurs sont très bien controlés et à une fréquence plus élevée que sur le SWUMANOID car j'ai réussi à les controlés à une fréquence de 100 Hz. Cependant le problème actuel est que je veux pouvoir les controler à une fréquence de 200 Hz, soit 2 fois plus. Pour y arriver il faudrait que j'utilise un baudrate sur les moteurs beaucoup plus élevé (au moins 1 Mbps) mais malheureusement malgré mes nombreux essaies je n'ai pas pu aller plus loin qu'un baudrate de 115200 bps. En effet à chaque fois que j'augmentais le baudrate plus haut, le micro controleur n'arrivait plus à détecter les moteurs, ceci est dû à une limitation matérielle de la base \textit{Atomic RS485}, et plus précisément à la manière dont elle pilote sa puce. La base repose sur un transceiver SP3485, capable en théorie d'atteindre 10\,Mbps. La puce n'est donc pas en cause : ce débit de 10\,Mbps correspond au débit \emph{brut}, c'est-à-dire à la vitesse des bits une fois que le sens de communication (émission ou réception) est déjà fixé.\\
+
+Or le bus Dynamixel est \textit{half-duplex} : une seule paire de fils (A/B) transporte les deux sens, et il faut donc basculer en permanence entre émission et réception. Ce basculement est commandé par une broche dédiée du transceiver, la broche \textit{DE} (\textit{Driver Enable}). Le problème est que la base M5Stack n'expose pas cette broche : elle ne sort que les lignes TX et RX, et confie le basculement à un \textbf{circuit de direction automatique} qui « écoute » la ligne de données afin de deviner seul quand émettre et quand recevoir.\\
+
+C'est ce circuit automatique et non la puce qui plafonne le débit. Il est calibré pour les basses vitesses : à 115200\,bps, un bit dure environ 8{,}7\,$\mu$s, ce qui lui laisse largement le temps de libérer le bus avant la réponse du moteur. À 1\,Mbps, un bit ne dure plus qu'environ 1\,$\mu$s : le circuit ne relâche plus la ligne assez vite, l'émission de la base écrase alors le début de la réponse du moteur, et le microcontrôleur ne reçoit plus aucun \textit{Status Packet}. C'est ce qui explique la perte totale de détection observée dès que je dépasse 115200\,bps.\\
+
+\paragraph{Résolution envisagée}
+La solution ne consiste pas à chercher une puce « plus rapide », puisque le SP3485 suffit déjà : il faut une carte sur laquelle la broche de direction DE est commandée \emph{explicitement} par le microcontrôleur, au lieu d'être confiée à un automate trop lent. Je prévois donc de remplacer la base \textit{Atomic RS485} par un petit transceiver SP3485 (ou MAX3485) en 3{,}3\,V exposant sa broche DE. Le matériel nécessaire :\\
+\begin{itemize}
+    \item une carte transceiver RS-485 en 3{,}3\,V avec broche DE accessible (puce SP3485, 10\,Mbps) ;
+    \item un convertisseur abaisseur 12\,V $\rightarrow$ 5\,V (type Pololu D24V10F5) pour alimenter l'AtomS3R, la base actuelle assurant cette conversion étant retirée ;
+    \item un boîtier de prototypage \textit{ATOM HUB Proto} pour intégrer proprement l'ensemble.
+\end{itemize}
+
+Le câblage reprend l'architecture déjà validée (alimentation en étoile, masse commune, terminaisons 120\,$\Omega$ inchangées) : seul l'étage de communication change. La broche DI du transceiver est reliée à la sortie TX (G6) de l'AtomS3R, la broche RO à l'entrée RX (G5), et les broches DE/RE réunies à un GPIO libre (G7). Côté logiciel, j'exploiterai le \textbf{mode RS-485 half-duplex matériel de l'UART de l'ESP32-S3} : la broche de direction (RTS) bascule automatiquement, en synchronisation directe avec le registre d'émission, sans latence logicielle. Le bus est ainsi libéré dès l'envoi du dernier bit, en moins d'une microseconde, ce qui rend le retournement de bus suffisamment rapide pour 1 comme pour 3\,Mbps.\\
+
+Une fois ce montage en place, il restera à reprogrammer le baudrate dans l'EEPROM de chaque moteur pour qu'il corresponde à celui du microcontrôleur, puis à valider la stabilité du bus (taux de perte de paquets, erreurs CRC) au nouveau débit. Le passage à 1\,Mbps suffit déjà théoriquement à atteindre les 200\,Hz visés avec une marge confortable, les 3\,Mbps constituant une réserve pour la montée en charge vers les 21 moteurs du SWUMANOID. Le passage des tests virtuels au robot physique SWUMANOID a montré des problèmes qui ont nécessité des refontes algorithmiques et logiques.
+
 
 
 \section{Cinématique et interpolation des mouvements}
@@ -490,7 +488,7 @@ Cette sécurisation logicielle est couplée à un bridage matériel temporaire d
 
 
 
-\section{Calcul des angles du SWUMANOID par l'IMU}
+\section{Configuration angulaire du SWUMANOID par l'IMU}
 
 Cette section formalise, de manière exhaustive, la chaîne de traitement cinématique retenue pour estimer les angles de \emph{roulis} ($\phi$, autour de l'axe longitudinal $X$) et de \emph{lacet} ($\psi$, autour de la verticale $Z$) du robot SWUMANOID à partir de la centrale inertielle (IMU) logée dans l'AtomS3R. La centrale ne fournit qu'un accéléromètre trois axes $\mathbf{a}=(A_x,A_y,A_z)^{\mathsf T}$ et un gyroscope trois axes $\boldsymbol{\omega}=(G_x,G_y,G_z)^{\mathsf T}$, exprimés dans le repère \emph{carte} $\mathcal{B}$ de l'AtomS3R ; ni quaternion d'attitude ni magnétomètre ne sont transmis.
 
@@ -602,7 +600,7 @@ q_{\text{raw}}\leftarrow\frac{q_{\text{raw}}\otimes\operatorname{Slerp}\!\big(\m
 \end{equation}
 Le couple \eqref{eq:gyro_step}--\eqref{eq:complementary} réalise ainsi un \emph{filtre complémentaire} : le gyroscope assure les hautes fréquences, tandis que l'accéléromètre corrige, à gain faible $\mu$, la dérive basse fréquence du roulis et du tangage. Cette structure est fonctionnellement analogue à un filtre de Madgwick (correction par descente de gradient d'une erreur d'alignement gravitaire), ici formulée sous une forme géométrique explicite. Le lacet, dépourvu de référence absolue, n'est jamais corrigé et reste issu de la seule intégration~\eqref{eq:gyro_step} : il est \emph{réversible}, ce qui garantit qu'un retour à la pose physique initiale ramène l'estimation au même état. Le quaternion résultant $q_{\text{raw}}$ représente l'attitude absolue de la carte, $\mathcal B\rightarrow\mathcal W$.
 
-\subsection{Changement de repère : alignement matériel (Z-Up)}
+\subsection{Changement de repère}
 \label{subsec:calib}
 
 L'AtomS3R n'est pas monté selon les axes anatomiques du SWUMANOID : il est logé dans la tête avec une inclinaison mécanique de $37{.}2^\circ$ \textbf{(cf. Figure~\ref{fig:robot_tilt})}. 
@@ -662,7 +660,7 @@ L'attitude absolue du robot, la monture étant fixée au corps, résulte de la p
 \end{equation}
 On vérifie que l'axe vertical du robot pointe bien vers le haut : la composante verticale de son axe $Z$ dans $\mathcal W$ vaut $\cos(37{.}2^\circ)>0$ (Z-Up), alors que la version antérieure à $+217{.}2^\circ$ donnait $\cos(217{.}2^\circ)<0$ (Z-Down).
 
-\subsection{Opération de tare (Set Zero)}
+\subsection{Opération de tare}
 \label{subsec:tare}
 
 L'utilisateur définit la pose courante comme origine $(0,0,0)$. On mémorise l'inverse (conjugué) de l'attitude transformée à l'instant du déclenchement, $q_{\text{robot}}^{(0)}$ :
